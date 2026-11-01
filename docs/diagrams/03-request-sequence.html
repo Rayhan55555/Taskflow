@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>03. End-to-End Request Lifecycle & Ownership Validation Sequence | TaskFlow Orchestrator</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { padding-bottom: 16px; border-bottom: 1px solid #1e293b; margin-bottom: 24px; }
+    h1 { margin: 0 0 8px 0; font-size: 22px; color: #ffffff; }
+    p { margin: 0; font-size: 13px; color: #94a3b8; line-height: 1.5; }
+    .diagram-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 32px;
+      overflow-x: auto;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .source-card {
+      margin-top: 24px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #cbd5e1;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 8px 16px;
+      background: #4f46e5;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .back-btn:hover { background: #4338ca; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "dark",
+        themeVariables: {
+          darkMode: true,
+          background: "#0f172a",
+          primaryColor: "#4f46e5",
+          primaryTextColor: "#ffffff",
+          primaryBorderColor: "#6366f1",
+          lineColor: "#38bdf8",
+          secondaryColor: "#0284c7",
+          tertiaryColor: "#1e293b"
+        }
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>03. End-to-End Request Lifecycle & Ownership Validation Sequence</h1>
+      <p>Step-by-step token verification, database session dispatch, ownership filter, and 404/403 isolation.</p>
+    </div>
+
+    <div class="diagram-card">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Client as Authenticated Client
+    participant Proxy as Reverse Proxy / CORS
+    participant Router as Task Router (app.routers.tasks)
+    participant Auth as Auth Dependency (get_current_user)
+    participant JWT as PyJWT Validator (app.auth)
+    participant DB as SQLAlchemy Session & Postgres
+
+    Client->>Proxy: POST /api/v1/tasks (Header: Authorization: Bearer <token>)
+    Proxy->>Router: Forward Request Payload & Headers
+    Router->>Auth: Invoke Depends(get_current_user)
+    Auth->>JWT: Verify Token (HS256, Secret, Algorithms)
+    JWT->>JWT: Validate Claims (sub, exp=1800s, iat, iss="taskflow", aud="taskflow-api", type="access")
+    
+    alt Missing or Expired or Invalid Claim
+        JWT-->>Auth: ClaimVerificationError / ExpiredSignatureError
+        Auth-->>Client: HTTP 401 Unauthorized (WWW-Authenticate: Bearer error="invalid_token")
+    else Claims Cryptographically Valid
+        JWT-->>Auth: Return Validated Claims Payload (sub=user_uuid)
+        Auth->>DB: SELECT * FROM users WHERE id = user_uuid AND is_active = true
+        DB-->>Auth: User Record Found & Active
+        Auth-->>Router: Injected current_user Entity
+    end
+
+    Router->>Router: Pydantic v2 Validate Body (title, description, status, priority, due_date)
+    alt Invalid Input Schema (e.g., empty title, invalid enum)
+        Router-->>Client: HTTP 422 Unprocessable Entity
+    else Valid Payload
+        Router->>Router: Bind Task.user_id = current_user.id
+        Router->>DB: INSERT INTO tasks (id, user_id, title, status, priority, ...) VALUES (...)
+        DB-->>Router: Insert Acknowledged
+        Router->>DB: Commit Transaction
+        Router-->>Client: HTTP 201 Created (Serialized TaskResponse)
+    end
+
+      </div>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <h3 style="font-size: 14px; margin-bottom: 8px; color: #cbd5e1;">Mermaid Raw Source Code</h3>
+      <div class="source-card">sequenceDiagram
+    autonumber
+    actor Client as Authenticated Client
+    participant Proxy as Reverse Proxy / CORS
+    participant Router as Task Router (app.routers.tasks)
+    participant Auth as Auth Dependency (get_current_user)
+    participant JWT as PyJWT Validator (app.auth)
+    participant DB as SQLAlchemy Session & Postgres
+
+    Client-&gt;&gt;Proxy: POST /api/v1/tasks (Header: Authorization: Bearer &lt;token&gt;)
+    Proxy-&gt;&gt;Router: Forward Request Payload & Headers
+    Router-&gt;&gt;Auth: Invoke Depends(get_current_user)
+    Auth-&gt;&gt;JWT: Verify Token (HS256, Secret, Algorithms)
+    JWT-&gt;&gt;JWT: Validate Claims (sub, exp=1800s, iat, iss="taskflow", aud="taskflow-api", type="access")
+    
+    alt Missing or Expired or Invalid Claim
+        JWT--&gt;&gt;Auth: ClaimVerificationError / ExpiredSignatureError
+        Auth--&gt;&gt;Client: HTTP 401 Unauthorized (WWW-Authenticate: Bearer error="invalid_token")
+    else Claims Cryptographically Valid
+        JWT--&gt;&gt;Auth: Return Validated Claims Payload (sub=user_uuid)
+        Auth-&gt;&gt;DB: SELECT * FROM users WHERE id = user_uuid AND is_active = true
+        DB--&gt;&gt;Auth: User Record Found & Active
+        Auth--&gt;&gt;Router: Injected current_user Entity
+    end
+
+    Router-&gt;&gt;Router: Pydantic v2 Validate Body (title, description, status, priority, due_date)
+    alt Invalid Input Schema (e.g., empty title, invalid enum)
+        Router--&gt;&gt;Client: HTTP 422 Unprocessable Entity
+    else Valid Payload
+        Router-&gt;&gt;Router: Bind Task.user_id = current_user.id
+        Router-&gt;&gt;DB: INSERT INTO tasks (id, user_id, title, status, priority, ...) VALUES (...)
+        DB--&gt;&gt;Router: Insert Acknowledged
+        Router-&gt;&gt;DB: Commit Transaction
+        Router--&gt;&gt;Client: HTTP 201 Created (Serialized TaskResponse)
+    end
+</div>
+    </div>
+
+    <a href="../START_HERE.html" class="back-btn">← Back to Master Viewer (START_HERE.html)</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "TaskFlow Orchestrator Phase 2 | Architecture & Codebase",
+  "description": "Production-ready Phase 2 codebase for TaskFlow Orchestrator adhering to ADR-002 modular monolith architecture with explicit user ownership enforcement, FastAPI, SQLAlchemy 2.x, Alembic, and Pytest suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,24 @@
+erDiagram
+    USERS ||--o{ TASKS : "owns (1:N)"
+
+    USERS {
+        uuid id PK "UUIDv4 Primary Key (gen_random_uuid())"
+        varchar email UK "Unique User Email (Normalized)"
+        varchar password_hash "Bcrypt Salted Hash (Never Exposed)"
+        varchar full_name "Optional Display Name"
+        boolean is_active "Account Status Flag"
+        timestamp_with_tz created_at "UTC Registration Timestamp"
+        timestamp_with_tz updated_at "UTC Last Modified Timestamp"
+    }
+
+    TASKS {
+        uuid id PK "UUIDv4 Primary Key (gen_random_uuid())"
+        uuid user_id FK "Owner User Foreign Key (ON DELETE CASCADE)"
+        varchar title "Task Headline (1-200 chars)"
+        text description "Optional Detailed Body / Markdown"
+        varchar status "State: pending | in_progress | completed | archived"
+        varchar priority "Level: low | medium | high | urgent"
+        timestamp_with_tz due_date "Optional UTC Completion Deadline"
+        timestamp_with_tz created_at "UTC Creation Timestamp"
+        timestamp_with_tz updated_at "UTC Last Update Timestamp"
+    }

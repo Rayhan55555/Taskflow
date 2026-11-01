@@ -1,0 +1,12 @@
+================================================================================
+TaskFlow Orchestrator — Phase 1 Evidence & Architecture Package
+Lead Architect: Rayhan Badsha | Rayhan AI Architecture
+Governance Status: PENDING FINAL PROJECT OWNER SIGN-OFF (Phase 2 READY)
+================================================================================
+
+HOW TO VIEW DIAGRAMS AND DOCUMENTATION:
+1. Double-click "START_HERE.html" in the root directory.
+2. It will open in any standard web browser (Chrome, Edge, Firefox, Safari).
+3. All 7 architecture diagrams will render visually with dark-mode styling.
+4. All 9 Phase 1 specifications can be read in the interactive documentation viewer.
+5. Individual standalone diagram files can also be found in "docs/diagrams/*.html".

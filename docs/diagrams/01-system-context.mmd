@@ -1,0 +1,20 @@
+graph TD
+    ClientApp["Client Applications\n(SPA / Mobile / Third-Party REST)"]
+    API["TaskFlow Orchestrator API\n(Modular Monolith - FastAPI)"]
+    DB[("Relational Database\n(PostgreSQL 16+)")]
+    FutureQueue[("Message Broker & Task Queue\n(Phase 3 - Redis / Celery)")]
+    FutureAI["Autonomous AI Agent Host\n(Phase 4 - MCP / LLM Planner)"]
+
+    ClientApp -->|"HTTPS / REST / JWT Bearer"| API
+    API -->|"Privileged TCP Connection Pool\n(SQLAlchemy 2.x / Port 5432)"| DB
+    API -.->|"Publish Async Job Events\n(Phase 3 Planned)"| FutureQueue
+    FutureQueue -.->|"Consume & Execute Jobs\n(Phase 3 Planned)"| DB
+    FutureAI -.->|"Authenticated Tool Calls (MCP)\n(Phase 4 Planned - Tenant Scoped)"| API
+
+    classDef primary fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#ffffff;
+    classDef storage fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
+    classDef planned fill:#1e293b,stroke:#f59e0b,stroke-width:1px,stroke-dasharray: 5 5,color:#cbd5e1;
+
+    class API primary;
+    class DB storage;
+    class FutureQueue,FutureAI planned;

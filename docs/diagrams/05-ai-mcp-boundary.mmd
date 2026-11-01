@@ -1,0 +1,41 @@
+flowchart TD
+    subgraph LLMClient["Autonomous AI Agent Host (Phase 4)"]
+        PlannerAgent["LLM Task Planner\n(Gemini / Claude Agent)"]
+    end
+
+    subgraph MCPBoundary["MCP Service Interface Boundary"]
+        MCPServer["Model Context Protocol Server\n(FastMCP / SSE Transport)"]
+        TenantContextInjector["Tenant Security Context Injector\n(Binds API Key / Token -> tenant_id)"]
+    end
+
+    subgraph CoreApplication["TaskFlow Modular Monolith"]
+        ToolRegistry["Registered Tool Handlers:\n- create_task_tool()\n- list_tasks_tool()\n- update_task_status_tool()"]
+        AppServiceLayer["Application Service Layer\n(Enforces user_id == tenant_id)"]
+        Persistence["SQLAlchemy 2.x Session Engine"]
+    end
+
+    subgraph Storage["PostgreSQL Database"]
+        DB[(Tenant Scoped Records)]
+    end
+
+    PlannerAgent -->|"1. Request Tool Call (JSON-RPC)"| MCPServer
+    MCPServer -->|"2. Extract Tenant Credentials"| TenantContextInjector
+    TenantContextInjector -->|"3. Injected Authorized Context"| ToolRegistry
+    ToolRegistry -->|"4. Execute Service with Bound tenant_id"| AppServiceLayer
+    AppServiceLayer -->|"5. Scoped Query: WHERE user_id = tenant_id"| Persistence
+    Persistence -->|"6. Query Execution"| DB
+    DB -->> Persistence: Tenant Data Only
+    Persistence -->> AppServiceLayer: Entity Result
+    AppServiceLayer -->> ToolRegistry: Sanitized DTO
+    ToolRegistry -->> MCPServer: Formatted Tool Result
+    MCPServer -->> PlannerAgent: LLM Context Feed
+
+    classDef agent fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#ffffff;
+    classDef mcp fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#ffffff;
+    classDef core fill:#0f172a,stroke:#6366f1,stroke-width:1.5px,color:#ffffff;
+    classDef storage fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
+
+    class PlannerAgent agent;
+    class MCPServer,TenantContextInjector mcp;
+    class ToolRegistry,AppServiceLayer,Persistence core;
+    class DB storage;

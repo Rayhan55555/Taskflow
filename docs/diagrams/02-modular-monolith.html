@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>02. Modular Monolith Subsystems Architecture | TaskFlow Orchestrator</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { padding-bottom: 16px; border-bottom: 1px solid #1e293b; margin-bottom: 24px; }
+    h1 { margin: 0 0 8px 0; font-size: 22px; color: #ffffff; }
+    p { margin: 0; font-size: 13px; color: #94a3b8; line-height: 1.5; }
+    .diagram-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 32px;
+      overflow-x: auto;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .source-card {
+      margin-top: 24px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #cbd5e1;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 8px 16px;
+      background: #4f46e5;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .back-btn:hover { background: #4338ca; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "dark",
+        themeVariables: {
+          darkMode: true,
+          background: "#0f172a",
+          primaryColor: "#4f46e5",
+          primaryTextColor: "#ffffff",
+          primaryBorderColor: "#6366f1",
+          lineColor: "#38bdf8",
+          secondaryColor: "#0284c7",
+          tertiaryColor: "#1e293b"
+        }
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>02. Modular Monolith Subsystems Architecture</h1>
+      <p>Internal domain partitioning: Edge Gateway, Auth Subsystem, Task Domain, Shared Infrastructure, Persistence.</p>
+    </div>
+
+    <div class="diagram-card">
+      <div class="mermaid">
+flowchart TD
+    subgraph EdgeBoundary["Edge & Ingress Boundary"]
+        Client["HTTP Client (Browser / Mobile / Script)"]
+        TLS["TLS 1.3 Termination & Reverse Proxy"]
+    end
+
+    subgraph FastAPIApp["Modular Monolith Boundary (FastAPI Process)"]
+        subgraph GatewayModule["Ingress & Middleware (app.main)"]
+            CORS["CORS Middleware"]
+            RateLimit["Sliding-Window Rate Limiter"]
+            RouterAuth["Auth Router (/api/v1/auth)"]
+            RouterTasks["Tasks Router (/api/v1/tasks)"]
+            HealthCheck["System Health (/health, /api/v1/health)"]
+        end
+
+        subgraph AuthModule["Identity & Security Subsystem (app.auth)"]
+            TokenVerifier["Strict PyJWT HS256 Engine\n(sub, exp, iat, iss, aud, type)"]
+            BcryptContext["Passlib Bcrypt Hasher\n(Rounds: 12)"]
+            AuthDependency["FastAPI get_current_user Dependency"]
+        end
+
+        subgraph TaskModule["Task Domain Subsystem (app.routers.tasks)"]
+            SchemaValidator["Pydantic v2 Schema Engine\n(TaskCreate, TaskUpdate, TaskResponse)"]
+            OwnershipGuard["ADR-002 Ownership Enforcement\n(Task.user_id == current_user.id)"]
+        end
+
+        subgraph CoreInfra["Shared Infrastructure & Data Access"]
+            ConfigSubsystem["Central Settings (app.config)\nPydantic Settings v2"]
+            SessionManager["Session Factory (app.database)\nget_db Dependency"]
+            PoolEngine["SQLAlchemy 2.x Engine\npool_size=10, max_overflow=20"]
+            AlembicEngine["Alembic Migration Runner\n(Explicit DDL Scripts)"]
+        end
+    end
+
+    subgraph DataStorage["Data Persistence Tier"]
+        Postgres[(PostgreSQL 16+ Engine\nUsers & Tasks Tables)]
+    end
+
+    Client -->|"HTTPS / JSON"| TLS
+    TLS --> CORS
+    CORS --> RateLimit
+    RateLimit --> RouterAuth
+    RateLimit --> RouterTasks
+    RateLimit --> HealthCheck
+
+    RouterAuth --> BcryptContext
+    RouterAuth --> TokenVerifier
+    RouterAuth --> SessionManager
+
+    RouterTasks --> AuthDependency
+    AuthDependency --> TokenVerifier
+    AuthDependency --> SessionManager
+
+    RouterTasks --> SchemaValidator
+    SchemaValidator --> OwnershipGuard
+    OwnershipGuard --> SessionManager
+
+    ConfigSubsystem -.-> PoolEngine
+    ConfigSubsystem -.-> TokenVerifier
+    SessionManager --> PoolEngine
+    PoolEngine -->|"Privileged TCP Pool (Port 5432)"| Postgres
+    AlembicEngine -.->|"Schema DDL Migrations"| Postgres
+
+    classDef comp fill:#0f172a,stroke:#818cf8,stroke-width:1px,color:#f8fafc;
+    class CORS,RateLimit,RouterAuth,RouterTasks,HealthCheck,TokenVerifier,BcryptContext,AuthDependency,SchemaValidator,OwnershipGuard,ConfigSubsystem,SessionManager,PoolEngine,AlembicEngine comp;
+
+      </div>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <h3 style="font-size: 14px; margin-bottom: 8px; color: #cbd5e1;">Mermaid Raw Source Code</h3>
+      <div class="source-card">flowchart TD
+    subgraph EdgeBoundary["Edge & Ingress Boundary"]
+        Client["HTTP Client (Browser / Mobile / Script)"]
+        TLS["TLS 1.3 Termination & Reverse Proxy"]
+    end
+
+    subgraph FastAPIApp["Modular Monolith Boundary (FastAPI Process)"]
+        subgraph GatewayModule["Ingress & Middleware (app.main)"]
+            CORS["CORS Middleware"]
+            RateLimit["Sliding-Window Rate Limiter"]
+            RouterAuth["Auth Router (/api/v1/auth)"]
+            RouterTasks["Tasks Router (/api/v1/tasks)"]
+            HealthCheck["System Health (/health, /api/v1/health)"]
+        end
+
+        subgraph AuthModule["Identity & Security Subsystem (app.auth)"]
+            TokenVerifier["Strict PyJWT HS256 Engine\n(sub, exp, iat, iss, aud, type)"]
+            BcryptContext["Passlib Bcrypt Hasher\n(Rounds: 12)"]
+            AuthDependency["FastAPI get_current_user Dependency"]
+        end
+
+        subgraph TaskModule["Task Domain Subsystem (app.routers.tasks)"]
+            SchemaValidator["Pydantic v2 Schema Engine\n(TaskCreate, TaskUpdate, TaskResponse)"]
+            OwnershipGuard["ADR-002 Ownership Enforcement\n(Task.user_id == current_user.id)"]
+        end
+
+        subgraph CoreInfra["Shared Infrastructure & Data Access"]
+            ConfigSubsystem["Central Settings (app.config)\nPydantic Settings v2"]
+            SessionManager["Session Factory (app.database)\nget_db Dependency"]
+            PoolEngine["SQLAlchemy 2.x Engine\npool_size=10, max_overflow=20"]
+            AlembicEngine["Alembic Migration Runner\n(Explicit DDL Scripts)"]
+        end
+    end
+
+    subgraph DataStorage["Data Persistence Tier"]
+        Postgres[(PostgreSQL 16+ Engine\nUsers & Tasks Tables)]
+    end
+
+    Client --&gt;|"HTTPS / JSON"| TLS
+    TLS --&gt; CORS
+    CORS --&gt; RateLimit
+    RateLimit --&gt; RouterAuth
+    RateLimit --&gt; RouterTasks
+    RateLimit --&gt; HealthCheck
+
+    RouterAuth --&gt; BcryptContext
+    RouterAuth --&gt; TokenVerifier
+    RouterAuth --&gt; SessionManager
+
+    RouterTasks --&gt; AuthDependency
+    AuthDependency --&gt; TokenVerifier
+    AuthDependency --&gt; SessionManager
+
+    RouterTasks --&gt; SchemaValidator
+    SchemaValidator --&gt; OwnershipGuard
+    OwnershipGuard --&gt; SessionManager
+
+    ConfigSubsystem -.-&gt; PoolEngine
+    ConfigSubsystem -.-&gt; TokenVerifier
+    SessionManager --&gt; PoolEngine
+    PoolEngine --&gt;|"Privileged TCP Pool (Port 5432)"| Postgres
+    AlembicEngine -.-&gt;|"Schema DDL Migrations"| Postgres
+
+    classDef comp fill:#0f172a,stroke:#818cf8,stroke-width:1px,color:#f8fafc;
+    class CORS,RateLimit,RouterAuth,RouterTasks,HealthCheck,TokenVerifier,BcryptContext,AuthDependency,SchemaValidator,OwnershipGuard,ConfigSubsystem,SessionManager,PoolEngine,AlembicEngine comp;
+</div>
+    </div>
+
+    <a href="../START_HERE.html" class="back-btn">← Back to Master Viewer (START_HERE.html)</a>
+  </div>
+</body>
+</html>

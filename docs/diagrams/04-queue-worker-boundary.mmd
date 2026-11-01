@@ -1,0 +1,41 @@
+graph TD
+    subgraph MonolithCore["TaskFlow API (Modular Monolith)"]
+        TaskEndpoint["Task Mutation / Schedule Route"]
+        EventDispatcher["Job Dispatcher Interface\n(app.tasks.queue)"]
+    end
+
+    subgraph BrokerQueue["Message Broker Tier (Phase 3)"]
+        RedisQueue[("Redis Broker\nTask Event Queues")]
+        DeadLetter[("Redis DLQ\nFailed Jobs")]
+    end
+
+    subgraph WorkerPool["Asynchronous Worker Tier (Phase 3)"]
+        WorkerProcess1["Celery / ARQ Worker 1\n(Task Runner)"]
+        WorkerProcess2["Celery / ARQ Worker 2\n(Notification Runner)"]
+        CronScheduler["Beat / Periodic Scheduler\n(Recurring Tasks)"]
+    end
+
+    subgraph DataStore["Persistence Tier"]
+        Postgres[("PostgreSQL 16+\nShared Models & State")]
+    end
+
+    TaskEndpoint -->|"Enqueue Job Payload"| EventDispatcher
+    EventDispatcher -->|"LPUSH / AMQP Message"| RedisQueue
+    CronScheduler -->|"Publish Scheduled Event"| RedisQueue
+
+    RedisQueue -->|"BRPOP Job"| WorkerProcess1
+    RedisQueue -->|"BRPOP Job"| WorkerProcess2
+    WorkerProcess1 -.->|"Exceeded Max Retries"| DeadLetter
+
+    WorkerProcess1 -->|"Read / Update Task State\n(Using Same SQLAlchemy Models)"| Postgres
+    WorkerProcess2 -->|"Log Execution Audit"| Postgres
+
+    classDef core fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#ffffff;
+    classDef broker fill:#0f172a,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff;
+    classDef worker fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#ffffff;
+    classDef db fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#ffffff;
+
+    class TaskEndpoint,EventDispatcher core;
+    class RedisQueue,DeadLetter broker;
+    class WorkerProcess1,WorkerProcess2,CronScheduler worker;
+    class Postgres db;

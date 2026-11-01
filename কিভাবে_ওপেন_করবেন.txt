@@ -1,0 +1,55 @@
+================================================================================
+TaskFlow Orchestrator — Phase 1 Evidence & Architecture Package
+লিড আর্কিটেক্ট: রায়হান বাদশাহ (Rayhan Badsha) | Rayhan AI Architecture
+গভর্নেন্স স্ট্যাটাস: PENDING FINAL PROJECT OWNER SIGN-OFF (Phase 2 READY)
+================================================================================
+
+[সমস্যা ও সমাধানের উপায়]
+প্রশ্ন: জিপ ফাইল আনজিপ করলে নোটপ্যাডে ডায়াগ্রাম বা প্রজেক্ট কোড বোঝা যায় না কেন?
+উত্তর: 
+- .mmd ফাইল এবং .md ফাইলগুলো মূলত টেক্সট সোর্স কোড। 
+- সাধারণ উইন্ডোজ নোটপ্যাড বা টেক্সট এডিটরে ওপেন করলে ডায়াগ্রাম আঁকা যায় না, শুধু কোড দেখা যায়।
+- এর সহজ সমাধানের জন্য এই প্যাকেজে একটি স্বয়ংসম্পূর্ণ অফলাইন ভিউয়ার দেওয়া হয়েছে।
+
+[কিভাবে খুব সহজে ডায়াগ্রাম সহ পুরো প্রজেক্ট দেখবেন]
+১. এই ফোল্ডারের মূল ডিরেক্টরিতে থাকা "START_HERE.html" ফাইলটিতে ডাবল ক্লিক করুন।
+২. আপনার গুগল ক্রোম (Google Chrome), এজ (Microsoft Edge) বা ফায়ারফক্স ব্রাউজারে এটি ওপেন হবে।
+৩. সেখানে ৭টি আর্কিটেকচার ডায়াগ্রাম একদম পরিষ্কার রঙিন ভিজুয়াল আকারে রেন্ডার হবে।
+৪. ৯টি স্পেসিফিকেশন ডকুমেন্টও পাশাপাশি সুন্দর ট্যাবে পড়তে পারবেন।
+
+[স্বতন্ত্র ডায়াগ্রাম দেখতে চান?]
+- "docs/diagrams/" ফোল্ডারে প্রবেশ করুন।
+- যেকোনো .html ফাইলের উপর ডাবল ক্লিক করুন (যেমন: 01-system-context.html, 02-modular-monolith.html)।
+- সাথে সাথেই ফুলস্ক্রিন ডায়াগ্রামটি দেখতে পাবেন।
+
+[প্যাকেজের ভেতরের ফাইল ও ফোল্ডার ইনভেন্টরি]
+├── START_HERE.html                   <-- ডাবল ক্লিক করে সব ডায়াগ্রাম ও ডক দেখুন
+├── index.html                        <-- মাস্টার অফলাইন ভিউয়ারের ব্যাকআপ কপি
+├── EVIDENCE_PACKAGE_MANIFEST.json   <-- গভর্নেন্স অডিট ও ফাইল ইন্টিগ্রিটি বিবরণ
+├── কিভাবে_ওপেন_করবেন.txt             <-- এই গাইড
+├── HOW_TO_OPEN.txt                   <-- English Quickstart Guide
+├── README.md                         <-- Phase 1 & 2 Overview
+├── requirements.txt                  <-- Python Dependencies
+├── alembic.ini                       <-- Database Migrations Config
+├── .env.example                      <-- Environment Configuration
+├── docs/                             <-- ৯টি স্থাপত্য স্পেসিফিকেশন
+│   ├── api/api-contract.md
+│   ├── architecture/system-architecture.md
+│   ├── architecture/database-er-diagram.md
+│   ├── decisions/ADR-001-modular-monolith.md
+│   ├── decisions/ADR-002-database-security.md
+│   ├── security/threat-model.md
+│   ├── testing/test-plan.md
+│   ├── phase-reports/phase-01-review.md
+│   ├── phase-reports/phase-01-audit-report.md
+│   └── diagrams/                     <-- ৭টি Mermaid সোর্স (.mmd) ও ৭টি রেন্ডারড ভিউয়ার (.html)
+├── app/                              <-- Phase 2 মডুলার মনোলিথ সোর্স কোড
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   └── routers/ (auth.py, tasks.py)
+├── alembic/                          <-- ডাটাবেজ মাইগ্রেশন স্ক্রিপ্টস
+└── tests/                            <-- Pytest টেস্ট স্যুট (conftest.py, test_auth.py, test_tasks.py)

@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> pending : POST /api/v1/tasks (Creation)
+    
+    pending --> in_progress : PATCH /api/v1/tasks/{id} (status="in_progress")
+    pending --> archived : PATCH /api/v1/tasks/{id} (status="archived")
+    
+    in_progress --> completed : PATCH /api/v1/tasks/{id} (status="completed")
+    in_progress --> pending : PATCH /api/v1/tasks/{id} (status="pending")
+    in_progress --> archived : PATCH /api/v1/tasks/{id} (status="archived")
+    
+    completed --> in_progress : PATCH /api/v1/tasks/{id} (Re-open)
+    completed --> archived : PATCH /api/v1/tasks/{id} (status="archived")
+    
+    archived --> pending : PATCH /api/v1/tasks/{id} (Restore)
+    
+    pending --> [*] : DELETE /api/v1/tasks/{id} (Hard Delete)
+    in_progress --> [*] : DELETE /api/v1/tasks/{id} (Hard Delete)
+    completed --> [*] : DELETE /api/v1/tasks/{id} (Hard Delete)
+    archived --> [*] : DELETE /api/v1/tasks/{id} (Hard Delete)

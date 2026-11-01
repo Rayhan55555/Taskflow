@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph EdgeBoundary["Edge & Ingress Boundary"]
+        Client["HTTP Client (Browser / Mobile / Script)"]
+        TLS["TLS 1.3 Termination & Reverse Proxy"]
+    end
+
+    subgraph FastAPIApp["Modular Monolith Boundary (FastAPI Process)"]
+        subgraph GatewayModule["Ingress & Middleware (app.main)"]
+            CORS["CORS Middleware"]
+            RateLimit["Sliding-Window Rate Limiter"]
+            RouterAuth["Auth Router (/api/v1/auth)"]
+            RouterTasks["Tasks Router (/api/v1/tasks)"]
+            HealthCheck["System Health (/health, /api/v1/health)"]
+        end
+
+        subgraph AuthModule["Identity & Security Subsystem (app.auth)"]
+            TokenVerifier["Strict PyJWT HS256 Engine\n(sub, exp, iat, iss, aud, type)"]
+            BcryptContext["Passlib Bcrypt Hasher\n(Rounds: 12)"]
+            AuthDependency["FastAPI get_current_user Dependency"]
+        end
+
+        subgraph TaskModule["Task Domain Subsystem (app.routers.tasks)"]
+            SchemaValidator["Pydantic v2 Schema Engine\n(TaskCreate, TaskUpdate, TaskResponse)"]
+            OwnershipGuard["ADR-002 Ownership Enforcement\n(Task.user_id == current_user.id)"]
+        end
+
+        subgraph CoreInfra["Shared Infrastructure & Data Access"]
+            ConfigSubsystem["Central Settings (app.config)\nPydantic Settings v2"]
+            SessionManager["Session Factory (app.database)\nget_db Dependency"]
+            PoolEngine["SQLAlchemy 2.x Engine\npool_size=10, max_overflow=20"]
+            AlembicEngine["Alembic Migration Runner\n(Explicit DDL Scripts)"]
+        end
+    end
+
+    subgraph DataStorage["Data Persistence Tier"]
+        Postgres[(PostgreSQL 16+ Engine\nUsers & Tasks Tables)]
+    end
+
+    Client -->|"HTTPS / JSON"| TLS
+    TLS --> CORS
+    CORS --> RateLimit
+    RateLimit --> RouterAuth
+    RateLimit --> RouterTasks
+    RateLimit --> HealthCheck
+
+    RouterAuth --> BcryptContext
+    RouterAuth --> TokenVerifier
+    RouterAuth --> SessionManager
+
+    RouterTasks --> AuthDependency
+    AuthDependency --> TokenVerifier
+    AuthDependency --> SessionManager
+
+    RouterTasks --> SchemaValidator
+    SchemaValidator --> OwnershipGuard
+    OwnershipGuard --> SessionManager
+
+    ConfigSubsystem -.-> PoolEngine
+    ConfigSubsystem -.-> TokenVerifier
+    SessionManager --> PoolEngine
+    PoolEngine -->|"Privileged TCP Pool (Port 5432)"| Postgres
+    AlembicEngine -.->|"Schema DDL Migrations"| Postgres
+
+    classDef comp fill:#0f172a,stroke:#818cf8,stroke-width:1px,color:#f8fafc;
+    class CORS,RateLimit,RouterAuth,RouterTasks,HealthCheck,TokenVerifier,BcryptContext,AuthDependency,SchemaValidator,OwnershipGuard,ConfigSubsystem,SessionManager,PoolEngine,AlembicEngine comp;
